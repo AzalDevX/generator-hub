@@ -39,6 +39,16 @@ export function generateMetadata({ params }: Props): Metadata {
   };
 }
 
+// Generar las rutas estáticas posibles para la página dinámica
+export function generateStaticParams() {
+  // Aquí deberías especificar todas las paletas de colores que deseas pre-generar estáticamente.
+  const palettes = ['red-green-blue', 'blue-yellow-purple', 'pink-orange-grey'];
+
+  return palettes.map((palette) => ({
+    palette,
+  }));
+}
+
 export default function PalettePage() {
   return <ColorPaletteGenerator />;
 }

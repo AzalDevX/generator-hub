@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Copy, Download, Shuffle, Lock, Unlock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -66,37 +66,128 @@ ${colors
   },
 ];
 
+const generateMonochromaticColors = (baseColor: chroma.Color): Color[] => {
+  return chroma
+    .scale([baseColor.brighten(2), baseColor, baseColor.darken(2)])
+    .colors(5)
+    .map((hex) => ({
+      hex,
+      name: getColorName(hex),
+      locked: false,
+    }));
+};
+
+const generateAnalogousColors = (baseColor: chroma.Color): Color[] => {
+  const hue = baseColor.get('hsl.h');
+  return [-30, -15, 0, 15, 30].map((offset) => {
+    const newHue = (hue + offset) % 360;
+    const color = chroma.hsl(
+      newHue,
+      baseColor.get('hsl.s'),
+      baseColor.get('hsl.l')
+    );
+    return {
+      hex: color.hex(),
+      name: getColorName(color.hex()),
+      locked: false,
+    };
+  });
+};
+
+const generateTriadicColors = (baseColor: chroma.Color): Color[] => {
+  return [0, 120, 240].flatMap((offset) => {
+    const hue = (baseColor.get('hsl.h') + offset) % 360;
+    const color = chroma.hsl(
+      hue,
+      baseColor.get('hsl.s'),
+      baseColor.get('hsl.l')
+    );
+    const lighter = color.brighten();
+    if (offset === 0) {
+      return [
+        {
+          hex: lighter.hex(),
+          name: getColorName(lighter.hex()),
+          locked: false,
+        },
+        { hex: color.hex(), name: getColorName(color.hex()), locked: false },
+      ];
+    }
+    return [
+      { hex: color.hex(), name: getColorName(color.hex()), locked: false },
+    ];
+  });
+};
+
+const generateComplementaryColors = (baseColor: chroma.Color): Color[] => {
+  const comp = chroma.hsl(
+    (baseColor.get('hsl.h') + 180) % 360,
+    baseColor.get('hsl.s'),
+    baseColor.get('hsl.l')
+  );
+  return [
+    baseColor.brighten(2),
+    baseColor,
+    baseColor.darken(1),
+    comp.brighten(1),
+    comp,
+  ].map((color) => ({
+    hex: color.hex(),
+    name: getColorName(color.hex()),
+    locked: false,
+  }));
+};
+
+const generateSplitComplementaryColors = (baseColor: chroma.Color): Color[] => {
+  const baseHue = baseColor.get('hsl.h');
+  return [
+    baseColor,
+    chroma.hsl(
+      (baseHue + 150) % 360,
+      baseColor.get('hsl.s'),
+      baseColor.get('hsl.l')
+    ),
+    chroma.hsl(
+      (baseHue + 210) % 360,
+      baseColor.get('hsl.s'),
+      baseColor.get('hsl.l')
+    ),
+    baseColor.brighten(),
+    baseColor.darken(),
+  ].map((color) => ({
+    hex: color.hex(),
+    name: getColorName(color.hex()),
+    locked: false,
+  }));
+};
+
+const getColorName = (hex: string): string => {
+  const color = chroma(hex);
+  const hue = color.get('hsl.h');
+  const saturation = color.get('hsl.s');
+  const luminance = color.get('hsl.l');
+
+  let baseName = '';
+  if ((hue >= 0 && hue < 15) || hue >= 345) baseName = 'red';
+  else if (hue >= 15 && hue < 45) baseName = 'orange';
+  else if (hue >= 45 && hue < 75) baseName = 'yellow';
+  else if (hue >= 75 && hue < 165) baseName = 'green';
+  else if (hue >= 165 && hue < 195) baseName = 'cyan';
+  else if (hue >= 195 && hue < 255) baseName = 'blue';
+  else if (hue >= 255 && hue < 285) baseName = 'purple';
+  else if (hue >= 285 && hue < 345) baseName = 'pink';
+
+  if (luminance > 0.8) return `light ${baseName}`;
+  if (luminance < 0.3) return `dark ${baseName}`;
+  if (saturation < 0.3) return `muted ${baseName}`;
+  return baseName;
+};
+
 export default function ColorPaletteGenerator() {
   const [colors, setColors] = useState<Color[]>([]);
   const [scheme, setScheme] = useState<ColorScheme>('analogous');
   const router = useRouter();
   const pathname = usePathname();
-
-  const getColorName = useMemo(
-    () =>
-      (hex: string): string => {
-        const color = chroma(hex);
-        const hue = color.get('hsl.h');
-        const saturation = color.get('hsl.s');
-        const luminance = color.get('hsl.l');
-
-        let baseName = '';
-        if ((hue >= 0 && hue < 15) || hue >= 345) baseName = 'red';
-        else if (hue >= 15 && hue < 45) baseName = 'orange';
-        else if (hue >= 45 && hue < 75) baseName = 'yellow';
-        else if (hue >= 75 && hue < 165) baseName = 'green';
-        else if (hue >= 165 && hue < 195) baseName = 'cyan';
-        else if (hue >= 195 && hue < 255) baseName = 'blue';
-        else if (hue >= 255 && hue < 285) baseName = 'purple';
-        else if (hue >= 285 && hue < 345) baseName = 'pink';
-
-        if (luminance > 0.8) return `light ${baseName}`;
-        if (luminance < 0.3) return `dark ${baseName}`;
-        if (saturation < 0.3) return `muted ${baseName}`;
-        return baseName;
-      },
-    []
-  );
 
   const updateURL = useCallback(
     (colors: Color[]) => {
@@ -110,242 +201,41 @@ export default function ColorPaletteGenerator() {
 
   const generatePalette = useCallback(() => {
     setColors((prevColors) => {
-      // If no colors exist yet, generate a complete new palette
+      const baseColor = chroma.random();
+      let newColors: Color[];
+
+      // Generate new colors based on scheme
+      switch (scheme) {
+        case 'monochromatic':
+          newColors = generateMonochromaticColors(baseColor);
+          break;
+        case 'analogous':
+          newColors = generateAnalogousColors(baseColor);
+          break;
+        case 'triadic':
+          newColors = generateTriadicColors(baseColor);
+          break;
+        case 'complementary':
+          newColors = generateComplementaryColors(baseColor);
+          break;
+        case 'split-complementary':
+          newColors = generateSplitComplementaryColors(baseColor);
+          break;
+        default:
+          newColors = generateAnalogousColors(baseColor);
+      }
+
+      // If there are no previous colors, return the new ones
       if (prevColors.length === 0) {
-        const baseColor = chroma.random();
-        let newColors: Color[] = [];
-
-        switch (scheme) {
-          case 'monochromatic':
-            newColors = chroma
-              .scale([baseColor.brighten(2), baseColor, baseColor.darken(2)])
-              .colors(5)
-              .map((hex) => ({
-                hex,
-                name: getColorName(hex),
-                locked: false,
-              }));
-            break;
-
-          case 'analogous':
-            const hue = baseColor.get('hsl.h');
-            newColors = [-30, -15, 0, 15, 30].map((offset) => {
-              const newHue = (hue + offset) % 360;
-              const color = chroma.hsl(
-                newHue,
-                baseColor.get('hsl.s'),
-                baseColor.get('hsl.l')
-              );
-              return {
-                hex: color.hex(),
-                name: getColorName(color.hex()),
-                locked: false,
-              };
-            });
-            break;
-
-          case 'triadic':
-            newColors = [0, 120, 240].flatMap((offset) => {
-              const hue = (baseColor.get('hsl.h') + offset) % 360;
-              const color = chroma.hsl(
-                hue,
-                baseColor.get('hsl.s'),
-                baseColor.get('hsl.l')
-              );
-              const lighter = color.brighten();
-              if (offset === 0) {
-                return [
-                  {
-                    hex: lighter.hex(),
-                    name: getColorName(lighter.hex()),
-                    locked: false,
-                  },
-                  {
-                    hex: color.hex(),
-                    name: getColorName(color.hex()),
-                    locked: false,
-                  },
-                ];
-              }
-              return [
-                {
-                  hex: color.hex(),
-                  name: getColorName(color.hex()),
-                  locked: false,
-                },
-              ];
-            });
-            break;
-
-          case 'complementary':
-            const comp = chroma.hsl(
-              (baseColor.get('hsl.h') + 180) % 360,
-              baseColor.get('hsl.s'),
-              baseColor.get('hsl.l')
-            );
-            newColors = [
-              baseColor.brighten(2),
-              baseColor,
-              baseColor.darken(1),
-              comp.brighten(1),
-              comp,
-            ].map((color) => ({
-              hex: color.hex(),
-              name: getColorName(color.hex()),
-              locked: false,
-            }));
-            break;
-
-          case 'split-complementary':
-            const baseHue = baseColor.get('hsl.h');
-            newColors = [
-              baseColor,
-              chroma.hsl(
-                (baseHue + 150) % 360,
-                baseColor.get('hsl.s'),
-                baseColor.get('hsl.l')
-              ),
-              chroma.hsl(
-                (baseHue + 210) % 360,
-                baseColor.get('hsl.s'),
-                baseColor.get('hsl.l')
-              ),
-              baseColor.brighten(),
-              baseColor.darken(),
-            ].map((color) => ({
-              hex: color.hex(),
-              name: getColorName(color.hex()),
-              locked: false,
-            }));
-            break;
-        }
-
         return newColors;
       }
 
-      // Generate new colors for unlocked positions
-      const baseColor = chroma.random();
-      let newColors: Color[] = [];
-
-      switch (scheme) {
-        case 'monochromatic':
-          newColors = chroma
-            .scale([baseColor.brighten(2), baseColor, baseColor.darken(2)])
-            .colors(5)
-            .map((hex) => ({
-              hex,
-              name: getColorName(hex),
-              locked: false,
-            }));
-          break;
-
-        case 'analogous':
-          const hue = baseColor.get('hsl.h');
-          newColors = [-30, -15, 0, 15, 30].map((offset) => {
-            const newHue = (hue + offset) % 360;
-            const color = chroma.hsl(
-              newHue,
-              baseColor.get('hsl.s'),
-              baseColor.get('hsl.l')
-            );
-            return {
-              hex: color.hex(),
-              name: getColorName(color.hex()),
-              locked: false,
-            };
-          });
-          break;
-
-        case 'triadic':
-          newColors = [0, 120, 240].flatMap((offset) => {
-            const hue = (baseColor.get('hsl.h') + offset) % 360;
-            const color = chroma.hsl(
-              hue,
-              baseColor.get('hsl.s'),
-              baseColor.get('hsl.l')
-            );
-            const lighter = color.brighten();
-            if (offset === 0) {
-              return [
-                {
-                  hex: lighter.hex(),
-                  name: getColorName(lighter.hex()),
-                  locked: false,
-                },
-                {
-                  hex: color.hex(),
-                  name: getColorName(color.hex()),
-                  locked: false,
-                },
-              ];
-            }
-            return [
-              {
-                hex: color.hex(),
-                name: getColorName(color.hex()),
-                locked: false,
-              },
-            ];
-          });
-          break;
-
-        case 'complementary':
-          const comp = chroma.hsl(
-            (baseColor.get('hsl.h') + 180) % 360,
-            baseColor.get('hsl.s'),
-            baseColor.get('hsl.l')
-          );
-          newColors = [
-            baseColor.brighten(2),
-            baseColor,
-            baseColor.darken(1),
-            comp.brighten(1),
-            comp,
-          ].map((color) => ({
-            hex: color.hex(),
-            name: getColorName(color.hex()),
-            locked: false,
-          }));
-          break;
-
-        case 'split-complementary':
-          const baseHue = baseColor.get('hsl.h');
-          newColors = [
-            baseColor,
-            chroma.hsl(
-              (baseHue + 150) % 360,
-              baseColor.get('hsl.s'),
-              baseColor.get('hsl.l')
-            ),
-            chroma.hsl(
-              (baseHue + 210) % 360,
-              baseColor.get('hsl.s'),
-              baseColor.get('hsl.l')
-            ),
-            baseColor.brighten(),
-            baseColor.darken(),
-          ].map((color) => ({
-            hex: color.hex(),
-            name: getColorName(color.hex()),
-            locked: false,
-          }));
-          break;
-      }
-
-      // Return a new array where locked colors are preserved and unlocked ones are updated
+      // Otherwise, preserve locked colors
       return prevColors.map((prevColor, index) => {
-        // If the color is locked, return it unchanged with its locked state
         if (prevColor.locked) {
-          return {
-            ...prevColor,
-            locked: true, // Ensure locked state is preserved
-          };
+          return { ...prevColor, locked: true };
         }
-        // If it's not locked, use the new color
-        return {
-          ...newColors[index],
-          locked: false, // Ensure unlocked state is explicit
-        };
+        return { ...newColors[index], locked: false };
       });
     });
 
@@ -356,7 +246,7 @@ export default function ColorPaletteGenerator() {
         return currentColors;
       });
     }, 0);
-  }, [scheme, getColorName, updateURL]);
+  }, [scheme, updateURL]);
 
   const handleSchemeChange = (newScheme: ColorScheme) => {
     setScheme(newScheme);
@@ -365,11 +255,10 @@ export default function ColorPaletteGenerator() {
 
   const toggleLock = (index: number) => {
     setColors((prevColors) =>
-      prevColors.map(
-        (color, i) =>
-          i === index
-            ? { ...color, locked: !color.locked }
-            : { ...color, locked: color.locked } // Explicitly preserve locked state
+      prevColors.map((color, i) =>
+        i === index
+          ? { ...color, locked: !color.locked }
+          : { ...color, locked: color.locked }
       )
     );
   };
@@ -419,7 +308,7 @@ export default function ColorPaletteGenerator() {
     } else if (colors.length === 0) {
       generatePalette();
     }
-  }, [pathname, colors.length, generatePalette, getColorName]);
+  }, [pathname, colors.length, generatePalette]);
 
   // Space bar handler
   useEffect(() => {
