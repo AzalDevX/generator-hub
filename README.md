@@ -6,8 +6,6 @@
 
 A collection of useful generators with a Discord-inspired interface. Create beautiful README files and color palettes for your projects with ease.
 
-![Generators Hub Preview](/placeholder.svg?height=400&width=800)
-
 ## ✨ Features
 
 ### 📝 README Generator
@@ -128,7 +126,7 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## 📞 Contact
 
-Gonzalo Azaldegi - [@lalodev](https://twitter.com/lalodev)
+Gonzalo Azaldegi - [@lalodev](https://lalo.lol/x)
 
 Project Link: [Here](https://generators.azaldev.com)
 
