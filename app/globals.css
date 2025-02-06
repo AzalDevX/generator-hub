@@ -1,0 +1,98 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 0 0% 3.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 3.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 3.9%;
+    --primary: 235 85.6% 64.7%;
+    --primary-foreground: 0 0% 98%;
+    --secondary: 217 7% 24%;
+    --secondary-foreground: 0 0% 98%;
+    --muted: 217 7% 24%;
+    --muted-foreground: 0 0% 63.9%;
+    --accent: 217 7% 24%;
+    --accent-foreground: 0 0% 98%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 217 7% 24%;
+    --input: 217 7% 24%;
+    --ring: 235 85.6% 64.7%;
+    --radius: 0.75rem;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-discord text-discord-text-primary antialiased;
+  }
+}
+
+@layer components {
+  .markdown-content {
+    @apply prose prose-invert max-w-none;
+  }
+
+  .markdown-content h1,
+  .markdown-content h2,
+  .markdown-content h3,
+  .markdown-content h4 {
+    @apply text-discord-text-primary font-bold;
+  }
+
+  .markdown-content p {
+    @apply text-discord-text-secondary;
+  }
+
+  .markdown-content a {
+    @apply text-discord-blue no-underline hover:text-discord-blue/80 hover:underline;
+  }
+
+  .markdown-content strong {
+    @apply text-discord-text-primary;
+  }
+
+  .markdown-content code {
+    @apply text-discord-green bg-discord-secondary px-1.5 py-0.5 rounded;
+  }
+
+  .markdown-content pre {
+    @apply bg-discord-secondary text-discord-text-primary p-4 rounded-lg;
+  }
+
+  .markdown-content ol,
+  .markdown-content ul {
+    @apply text-discord-text-secondary;
+  }
+
+  .markdown-content blockquote {
+    @apply text-discord-text-secondary border-l-4 border-discord-secondary pl-4 italic;
+  }
+}
+
+/* Scrollbar personalizado */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-discord-secondary;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-discord-tertiary rounded-full;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-discord-primary;
+}
+
