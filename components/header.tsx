@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { FileText, Palette } from 'lucide-react';
+import { FileText, Palette, QrCode } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 export function Header() {
@@ -25,6 +25,12 @@ export function Header() {
   const generators = [
     { href: '/readme', label: 'README', icon: FileText },
     { href: '/colors', label: 'Colors', icon: Palette },
+    {
+      href: 'https://notathing.tech',
+      label: 'QR Code',
+      icon: QrCode,
+      external: true,
+    },
   ];
 
   return (
@@ -48,10 +54,12 @@ export function Header() {
           </Link>
         </motion.div>
         <nav className="flex items-center space-x-8">
-          {generators.map(({ href, label, icon: Icon }) => (
+          {generators.map(({ href, label, icon: Icon, external }) => (
             <motion.div key={href} variants={item}>
               <Link
                 href={href}
+                target={external ? '_blank' : undefined}
+                rel={external ? 'noopener noreferrer' : undefined}
                 className="relative text-discord-text-secondary hover:text-discord-text-primary transition-all duration-300 text-sm font-medium tracking-wide px-1 py-2 flex items-center space-x-2">
                 <Icon className="h-4 w-4" />
                 <span>{label}</span>
